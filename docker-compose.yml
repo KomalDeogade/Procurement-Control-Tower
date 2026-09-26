@@ -1,0 +1,93 @@
+
+services:
+  # ── Core Database ──────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: scm-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-scm_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-scm_password}
+      POSTGRES_DB: ${POSTGRES_DB:-scm_procurement}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/01-init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-scm_user} -d ${POSTGRES_DB:-scm_procurement}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - scm-network
+
+  # ── FastAPI Backend ────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: scm-backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-scm_user}:${POSTGRES_PASSWORD:-scm_password}@postgres:5432/${POSTGRES_DB:-scm_procurement}
+      JWT_SECRET: ${JWT_SECRET:-change-this-to-a-secure-random-string-in-production}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      JWT_EXPIRATION_MINUTES: ${JWT_EXPIRATION_MINUTES:-480}
+      MOCK_SAP_URL: ${MOCK_SAP_URL:-http://mock-sap:8001}
+      AI_PROVIDER: ${AI_PROVIDER:-none}
+      AI_API_KEY: ${AI_API_KEY:-}
+      APP_ENV: ${APP_ENV:-development}
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      - ./backend:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: >
+      sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+    networks:
+      - scm-network
+
+  # ── Mock SAP Service ───────────────────────────────────
+  mock-sap:
+    build:
+      context: ./mock-sap
+      dockerfile: Dockerfile
+    container_name: scm-mock-sap
+    restart: unless-stopped
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./mock-sap:/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
+    networks:
+      - scm-network
+
+  # ── n8n (Optional – run with: docker compose --profile n8n up) ──
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: scm-n8n
+    restart: unless-stopped
+    profiles:
+      - n8n
+    environment:
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=admin
+      - N8N_BASIC_AUTH_PASSWORD=admin
+      - WEBHOOK_URL=http://n8n:5678/
+    ports:
+      - "5678:5678"
+    volumes:
+      - n8n_data:/home/node/.n8n
+    networks:
+      - scm-network
+
+volumes:
+  postgres_data:
+  n8n_data:
+
+networks:
+  scm-network:
+    driver: bridge
