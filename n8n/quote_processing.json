@@ -1,0 +1,53 @@
+{
+  "name": "SCM Quote Processing Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "quote-submitted",
+        "options": {}
+      },
+      "id": "node-webhook-quote",
+      "name": "Webhook - Quote Submitted",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://backend:8000/api/ai/extract-quote",
+        "jsonParameters": true,
+        "bodyParametersJson": "{\"text\": \"{{$json.body.quotation_text}}\", \"requirement_id\": {{$json.body.requirement_id}}}",
+        "options": {}
+      },
+      "id": "node-extract-ai",
+      "name": "AI Document Extraction",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://backend:8000/api/quotes/",
+        "jsonParameters": true,
+        "bodyParametersJson": "{{JSON.stringify($node['AI Document Extraction'].json.extracted)}}",
+        "options": {}
+      },
+      "id": "node-store-quote",
+      "name": "Store Supplier Quote",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [650, 300]
+    }
+  ],
+  "connections": {
+    "Webhook - Quote Submitted": {
+      "main": [[{"node": "AI Document Extraction", "type": "main", "index": 0}]]
+    },
+    "AI Document Extraction": {
+      "main": [[{"node": "Store Supplier Quote", "type": "main", "index": 0}]]
+    }
+  }
+}

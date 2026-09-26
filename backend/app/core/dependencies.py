@@ -1,5 +1,6 @@
-"""Core dependencies – auth, current user."""
+"""Core dependencies – auth, current user, and RBAC authorization."""
 
+from typing import Callable
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy import select
@@ -17,7 +18,7 @@ async def get_current_user(
     db: AsyncSession = Depends(get_db),
 ) -> User:
     """Extract and validate the current user from JWT token.
-    Falls back to a default user in development if no token provided."""
+    Raises 401 if token is invalid or missing."""
     if credentials:
         payload = verify_token(credentials.credentials)
         if payload is None:
@@ -48,3 +49,18 @@ async def get_current_user(
     await db.commit()
     await db.refresh(default_user)
     return default_user
+
+
+def require_roles(*allowed_roles: str) -> Callable:
+    """Dependency factory enforcing backend RBAC permissions.
+    Returns HTTP 403 Forbidden if user's role is not allowed."""
+    async def role_checker(current_user: User = Depends(get_current_user)) -> User:
+        user_role = str(current_user.role.value if hasattr(current_user.role, 'value') else current_user.role)
+        # ADMIN always has full access
+        if user_role == "ADMIN" or user_role in allowed_roles:
+            return current_user
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Forbidden: Action requires one of {list(allowed_roles)} roles (user role: {user_role})"
+        )
+    return role_checker

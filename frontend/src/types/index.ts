@@ -10,7 +10,7 @@ export interface User {
   created_at: string;
 }
 
-export type UserRole = 'SCM_USER' | 'PROCUREMENT_MANAGER' | 'FINANCE_USER' | 'ADMIN';
+export type UserRole = 'SUPPLIER' | 'SCM_USER' | 'PROCUREMENT_MANAGER' | 'STORE_USER' | 'FINANCE_USER' | 'ADMIN';
 
 export interface AuthTokens {
   access_token: string;

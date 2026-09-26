@@ -1,29 +1,37 @@
 /**
- * Sidebar navigation – Phase 3 (with AI, Exceptions, Reports, Demo sections).
+ * Sidebar navigation – Role-Based Navigation filtering (Phase 2).
  */
 
 import { NavLink } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth';
 
-const coreNav = [
-  { to: '/',                label: 'Dashboard',        icon: '📊' },
-  { to: '/requirements',    label: 'Requirements',     icon: '📋' },
-  { to: '/suppliers',       label: 'Suppliers',        icon: '🏭' },
-  { to: '/rfqs',            label: 'RFQs',             icon: '📨' },
-  { to: '/quotes',          label: 'Quote Comparison', icon: '💰' },
-  { to: '/approvals',       label: 'Approvals',        icon: '✅' },
-  { to: '/purchase-orders', label: 'Purchase Orders',  icon: '🛒' },
-  { to: '/goods-receipts',  label: 'Goods Receipts',   icon: '📫' },
-  { to: '/inventory',       label: 'Inventory',        icon: '📦' },
-  { to: '/invoices',        label: 'Invoices',         icon: '🧾' },
-  { to: '/payments',        label: 'Payments',         icon: '💳' },
-  { to: '/audit-log',       label: 'Audit Log',        icon: '📜' },
+interface NavEntry {
+  to: string;
+  label: string;
+  icon: string;
+  roles?: string[]; // If omitted, allowed for all roles except SUPPLIER
+}
+
+const allNavItems: NavEntry[] = [
+  { to: '/',                label: 'Dashboard',        icon: '📊', roles: ['SUPPLIER', 'SCM_USER', 'PROCUREMENT_MANAGER', 'STORE_USER', 'FINANCE_USER', 'ADMIN'] },
+  { to: '/requirements',    label: 'Requirements',     icon: '📋', roles: ['SCM_USER', 'PROCUREMENT_MANAGER', 'ADMIN'] },
+  { to: '/suppliers',       label: 'Suppliers',        icon: '🏭', roles: ['SCM_USER', 'PROCUREMENT_MANAGER', 'ADMIN'] },
+  { to: '/rfqs',            label: 'RFQs',             icon: '📨', roles: ['SUPPLIER', 'SCM_USER', 'PROCUREMENT_MANAGER', 'ADMIN'] },
+  { to: '/quotes',          label: 'Quote Comparison', icon: '💰', roles: ['SUPPLIER', 'SCM_USER', 'ADMIN'] },
+  { to: '/approvals',       label: 'Approvals',        icon: '✅', roles: ['PROCUREMENT_MANAGER', 'ADMIN'] },
+  { to: '/purchase-orders', label: 'Purchase Orders',  icon: '🛒', roles: ['SUPPLIER', 'SCM_USER', 'PROCUREMENT_MANAGER', 'ADMIN'] },
+  { to: '/goods-receipts',  label: 'Goods Receipts',   icon: '📫', roles: ['SUPPLIER', 'STORE_USER', 'ADMIN'] },
+  { to: '/inventory',       label: 'Inventory',        icon: '📦', roles: ['SCM_USER', 'STORE_USER', 'ADMIN'] },
+  { to: '/invoices',        label: 'Invoices',         icon: '🧾', roles: ['FINANCE_USER', 'ADMIN'] },
+  { to: '/payments',        label: 'Payments',         icon: '💳', roles: ['FINANCE_USER', 'ADMIN'] },
+  { to: '/audit-log',       label: 'Audit Log',        icon: '📜', roles: ['ADMIN'] },
 ];
 
-const phase3Nav = [
-  { to: '/exceptions', label: 'Exceptions',     icon: '🚨' },
-  { to: '/ai',         label: 'AI Features',    icon: '🤖' },
-  { to: '/reports',    label: 'Reports',        icon: '📄' },
-  { to: '/demo',       label: 'Demo Mode',      icon: '🎯' },
+const phase3NavItems: NavEntry[] = [
+  { to: '/exceptions', label: 'Exceptions',     icon: '🚨', roles: ['SCM_USER', 'PROCUREMENT_MANAGER', 'STORE_USER', 'FINANCE_USER', 'ADMIN'] },
+  { to: '/ai',         label: 'AI Features',    icon: '🤖', roles: ['SCM_USER', 'PROCUREMENT_MANAGER', 'ADMIN'] },
+  { to: '/reports',    label: 'Reports',        icon: '📄', roles: ['SCM_USER', 'PROCUREMENT_MANAGER', 'FINANCE_USER', 'ADMIN'] },
+  { to: '/demo',       label: 'Demo Mode',      icon: '🎯', roles: ['SCM_USER', 'PROCUREMENT_MANAGER', 'ADMIN'] },
 ];
 
 function NavItem({ to, label, icon }: { to: string; label: string; icon: string }) {
@@ -46,38 +54,50 @@ function NavItem({ to, label, icon }: { to: string; label: string; icon: string 
 }
 
 export default function Sidebar() {
+  const { user } = useAuth();
+  const role = user?.role || 'SCM_USER';
+
+  const isAllowed = (item: NavEntry) => {
+    if (role === 'ADMIN') return true;
+    if (!item.roles) return role !== 'SUPPLIER';
+    return item.roles.includes(role);
+  };
+
+  const visibleCore = allNavItems.filter(isAllowed);
+  const visiblePhase3 = phase3NavItems.filter(isAllowed);
+
   return (
     <aside className="w-64 bg-surface-900 text-white min-h-screen flex flex-col shadow-lg">
       {/* Brand */}
       <div className="px-6 py-5 border-b border-surface-700">
         <h1 className="text-lg font-bold tracking-tight">SCM Control Tower</h1>
-        <p className="text-xs text-surface-400 mt-1">Procurement Intelligence</p>
+        <p className="text-xs text-surface-400 mt-1">Role: <span className="font-semibold text-blue-400">{role}</span></p>
       </div>
 
       {/* Nav */}
       <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-        {/* Core workflow */}
         <p className="px-3 py-1.5 text-xs font-semibold text-surface-500 uppercase tracking-wider">
           Workflow
         </p>
-        {coreNav.map(item => (
+        {visibleCore.map(item => (
           <NavItem key={item.to} {...item} />
         ))}
 
-        {/* Phase 3 — AI & Automation */}
-        <div className="pt-3">
-          <p className="px-3 py-1.5 text-xs font-semibold text-surface-500 uppercase tracking-wider">
-            AI & Automation
-          </p>
-          {phase3Nav.map(item => (
-            <NavItem key={item.to} {...item} />
-          ))}
-        </div>
+        {visiblePhase3.length > 0 && (
+          <div className="pt-3">
+            <p className="px-3 py-1.5 text-xs font-semibold text-surface-500 uppercase tracking-wider">
+              AI & Automation
+            </p>
+            {visiblePhase3.map(item => (
+              <NavItem key={item.to} {...item} />
+            ))}
+          </div>
+        )}
       </nav>
 
       {/* Footer */}
       <div className="px-6 py-4 border-t border-surface-700 text-xs text-surface-500">
-        v0.3.0 · Phase 3
+        v0.3.0 · RBAC Active
       </div>
     </aside>
   );

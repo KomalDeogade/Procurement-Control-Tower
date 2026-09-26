@@ -1,0 +1,53 @@
+{
+  "name": "SCM Morning Monitoring Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 24
+            }
+          ]
+        }
+      },
+      "id": "node-cron-morning",
+      "name": "Cron - Every Morning 8 AM",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://backend:8000/api/exceptions/",
+        "options": {}
+      },
+      "id": "node-fetch-exceptions",
+      "name": "Fetch Current Exceptions",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://backend:8000/api/ai/daily-brief",
+        "options": {}
+      },
+      "id": "node-generate-brief",
+      "name": "Generate AI Daily Brief",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [650, 300]
+    }
+  ],
+  "connections": {
+    "Cron - Every Morning 8 AM": {
+      "main": [[{"node": "Fetch Current Exceptions", "type": "main", "index": 0}]]
+    },
+    "Fetch Current Exceptions": {
+      "main": [[{"node": "Generate AI Daily Brief", "type": "main", "index": 0}]]
+    }
+  }
+}

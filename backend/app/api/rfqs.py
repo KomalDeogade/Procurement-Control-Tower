@@ -90,6 +90,24 @@ async def generate_rfqs(
     return {"message": f"Generated {len(created)} RFQs", "rfq_ids": created}
 
 
+@router.get("/token/{token}", response_model=RFQResponse)
+async def get_rfq_by_token(
+    token: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """Tokenized public endpoint – no auth required. Secure single-RFQ access."""
+    result = await db.execute(select(RFQ).where(RFQ.access_token == token))
+    rfq = result.scalar_one_or_none()
+    if not rfq:
+        # Fallback to ID search for legacy integer tokens
+        if token.isdigit():
+            result = await db.execute(select(RFQ).where(RFQ.id == int(token)))
+            rfq = result.scalar_one_or_none()
+    if not rfq:
+        raise HTTPException(404, "RFQ not found or token expired")
+    return rfq
+
+
 @router.get("/public/{rfq_id}", response_model=RFQResponse)
 async def get_rfq_public(
     rfq_id: int,

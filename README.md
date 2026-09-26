@@ -1,117 +1,108 @@
-# SCM Procurement Control Tower
+# SCM Procurement Control Tower – Enterprise Upgrade
 
-AI-enabled Supply Chain Management Procurement Control Tower for manufacturing procurement workflows.
+An **AI-enabled SCM Procurement Control Tower** with deterministic business rules, exception-first automation, Role-Based Access Control (RBAC), Mock SAP ERP integration, and n8n workflow blueprints.
 
-## Architecture
+---
 
-- **Frontend**: React + TypeScript + Vite + Tailwind CSS
-- **Backend**: Python + FastAPI + SQLAlchemy + Alembic
-- **Database**: PostgreSQL 16
-- **Mock SAP**: Separate FastAPI service simulating SAP ERP
-- **Future**: n8n orchestration, provider-agnostic AI services
+## 🏗️ System Architecture
 
-See [docs/architecture.md](docs/architecture.md) for full details.
-
-## Quick Start
-
-### Prerequisites
-
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (with Docker Compose)
-- [Node.js 18+](https://nodejs.org/) (for frontend development)
-
-### 1. Clone and configure
-
-```bash
-git clone <repo-url>
-cd scm-procurement-control-tower
-cp .env.example .env
+```
+┌───────────────────────────────────────────────────────────────────────────┐
+│                           Frontend (React 18 / Vite)                      │
+│   Role-Based Sidebar Navigation · Glassmorphism Dashboard · Exceptions    │
+│   Roles: SUPPLIER · SCM_USER · PROCUREMENT_MANAGER · STORE_USER · FINANCE  │
+└─────────────────────────────────────┬─────────────────────────────────────┘
+                                      │ REST API (JWT Bearer Token)
+┌─────────────────────────────────────▼─────────────────────────────────────┐
+│                        FastAPI Backend (Python 3.14)                       │
+│  ┌────────────────────┐  ┌─────────────────────┐  ┌─────────────────────┐ │
+│  │  RBAC Guard (403)  │  │ Deterministic Rules │  │   Scoring Engine    │ │
+│  └────────────────────┘  └─────────────────────┘  └─────────────────────┘ │
+│  ┌────────────────────┐  ┌─────────────────────┐  ┌─────────────────────┐ │
+│  │  3-Way Matcher     │  │ Inventory Analytics │  │  Audit Logger       │ │
+│  └────────────────────┘  └─────────────────────┘  └─────────────────────┘ │
+│                                     │                                     │
+│  ┌──────────────────────────────────▼──────────────────────────────────┐  │
+│  │                     SAPAdapter (Abstract Interface)                 │  │
+│  │        MockSAPAdapter ◄─────────────────► (Future: RealSAPAdapter)   │  │
+│  └──────────────────────────────────┬──────────────────────────────────┘  │
+└─────────────────────────────────────┼─────────────────────────────────────┘
+                                      │ HTTP (Port 8001)
+┌─────────────────────────────────────▼─────────────────────────────────────┐
+│                      Mock SAP Service (FastAPI)                            │
+│   Simulates: POs (450001xxx), GRNs, Invoices, Materials, Inventory        │
+└───────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 2. Start backend services
+---
 
-```bash
-docker compose up --build
+## 🔐 Role-Based Access Control (RBAC Matrix)
+
+| Role | Visible Navigation & Capabilities | Backend Permission Enforcement |
+| :--- | :--- | :--- |
+| **SUPPLIER** | Dashboard, My RFQs, My Quotes, My Orders, My Deliveries | Isolated to assigned supplier data only. Cannot view directory or other suppliers. |
+| **SCM_USER** | Dashboard, Requirements, Suppliers, RFQs, Quote Comparison, POs, Inventory, Exceptions, Reports | Full procurement requisition & quote comparison capabilities. |
+| **PROCUREMENT_MANAGER** | Dashboard, Approvals, Suppliers, POs, Exceptions, Reports | High-value budget approvals, vendor verification, policy override. |
+| **STORE_USER** | Dashboard, Goods Receipts (GRN), Inventory, Exceptions | Physical receiving inspection, stock count management. |
+| **FINANCE_USER** | Dashboard, Invoices, 3-Way Match, Payments, Exceptions, Reports | Invoice discrepancy verification, payment authorization & UTR execution. |
+| **ADMIN** | All Navigation, System Config, Users, Audit Trail, Health | Complete administrative oversight & system integration configuration. |
+
+---
+
+## ⚡ Quick Start Guide (Local Development)
+
+### 1. Start Backend & Database
+```powershell
+cd backend
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+python -m app.seed_data
+python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
+- **Backend API**: `http://localhost:8000/api`
+- **Swagger Documentation**: `http://localhost:8000/docs`
 
-This starts:
-| Service | URL | Description |
-|---------|-----|-------------|
-| PostgreSQL | `localhost:5432` | Database |
-| Backend API | `http://localhost:8000` | FastAPI + Swagger |
-| Mock SAP | `http://localhost:8001` | Simulated SAP ERP |
+### 2. Start Mock SAP Service
+```powershell
+cd mock-sap
+..\backend\.venv\Scripts\python -m uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
+```
+- **Mock SAP Base URL**: `http://localhost:8001`
+- **Mock SAP Health Check**: `http://localhost:8001/health`
 
-### 3. Start frontend
-
-```bash
+### 3. Start Frontend App
+```powershell
 cd frontend
 npm install
 npm run dev
 ```
+- **Control Tower Web UI**: `http://localhost:5173`
 
-Frontend runs at: **http://localhost:5173**
+---
 
-### 4. Login
+## 🧪 Running Automated Unit Tests
 
-Use any of the demo credentials:
+```powershell
+cd backend
+.\.venv\Scripts\pytest -v
+```
+*(Runs 117 unit tests covering RBAC authorization, scoring, inventory calculations, 3-way match, and payment logic)*
 
-| Username | Password | Role |
-|----------|----------|------|
-| `admin` | `admin123` | Admin |
-| `scm_user` | `scm123` | SCM User |
-| `proc_manager` | `manager123` | Procurement Manager |
-| `finance_user` | `finance123` | Finance User |
+---
 
-## Health Checks
+## 🐳 Running via Docker Compose
 
 ```bash
-# Backend
-curl http://localhost:8000/api/health
-
-# Mock SAP
-curl http://localhost:8001/health
+docker compose up -d
 ```
+Starts PostgreSQL database, FastAPI Backend, and Mock SAP Service in isolated containers.
 
-## API Documentation
+---
 
-- Swagger UI: http://localhost:8000/docs
-- ReDoc: http://localhost:8000/redoc
-- API Contracts: [docs/api-contracts.md](docs/api-contracts.md)
+## 🔄 n8n Integration Workflows
 
-## Optional: Start n8n
-
-```bash
-docker compose --profile n8n up
-```
-
-n8n will be available at: http://localhost:5678
-
-## Project Structure
-
-```
-scm-procurement-control-tower/
-├── frontend/          # React + Vite + Tailwind CSS
-├── backend/           # FastAPI + SQLAlchemy
-├── mock-sap/          # Mock SAP FastAPI service
-├── database/          # DB initialization scripts
-├── docs/              # Architecture & process docs
-├── n8n/               # n8n workflows (future)
-├── scripts/           # Utility scripts
-├── docker-compose.yml
-├── .env.example
-└── README.md
-```
-
-## Documentation
-
-- [Architecture](docs/architecture.md)
-- [As-Is Process](docs/as-is-process.md)
-- [To-Be Process](docs/to-be-process.md)
-- [API Contracts](docs/api-contracts.md)
-
-## Phase Status
-
-- ✅ **Phase 1**: Foundation & Architecture (current)
-- ⬜ Phase 2: Core procurement workflow
-- ⬜ Phase 3: AI integration
-- ⬜ Phase 4: n8n orchestration
-- ⬜ Phase 5: Polish & production readiness
+The `n8n/` directory contains 3 production-ready workflow blueprints:
+1. `n8n/rfq_automation.json` – Automated RFQ generation & notifications upon Requirement approval.
+2. `n8n/quote_processing.json` – Automated quote extraction & scoring pipeline upon supplier submission.
+3. `n8n/morning_monitoring.json` – Daily 8:00 AM scheduled job triggering AI Procurement Brief & exception aggregation.

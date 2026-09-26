@@ -31,6 +31,7 @@ class RFQ(Base):
         Integer, ForeignKey("suppliers.id"), nullable=False
     )
     status = Column(Enum(RFQStatus), default=RFQStatus.DRAFT)
+    access_token = Column(String(100), unique=True, index=True, nullable=True)  # Secure tokenized link
     response_deadline = Column(DateTime)
     notes = Column(Text)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

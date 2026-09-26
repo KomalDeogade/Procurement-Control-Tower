@@ -10,8 +10,10 @@ from app.database.session import Base
 
 
 class UserRole(str, enum.Enum):
+    SUPPLIER = "SUPPLIER"
     SCM_USER = "SCM_USER"
     PROCUREMENT_MANAGER = "PROCUREMENT_MANAGER"
+    STORE_USER = "STORE_USER"
     FINANCE_USER = "FINANCE_USER"
     ADMIN = "ADMIN"
 
@@ -25,6 +27,7 @@ class User(Base):
     full_name = Column(String(255), nullable=False)
     hashed_password = Column(String(255), nullable=False)
     role = Column(Enum(UserRole), default=UserRole.SCM_USER, nullable=False)
+    supplier_id = Column(Integer, nullable=True)  # Linked supplier ID if role == SUPPLIER
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(

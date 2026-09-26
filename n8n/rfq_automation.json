@@ -1,0 +1,64 @@
+{
+  "name": "SCM RFQ Automation Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "rfq-automation",
+        "options": {}
+      },
+      "id": "node-webhook-1",
+      "name": "Webhook - Approved Requirement",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://backend:8000/api/requirements/{{$json.body.requirement_id}}",
+        "options": {}
+      },
+      "id": "node-fetch-req",
+      "name": "Fetch Requirement Details",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://backend:8000/api/suppliers/",
+        "options": {}
+      },
+      "id": "node-fetch-suppliers",
+      "name": "Fetch Approved Suppliers",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://backend:8000/api/rfqs/generate/{{$node['Fetch Requirement Details'].json.id}}",
+        "jsonParameters": true,
+        "bodyParametersJson": "{\"supplier_ids\": [1, 2, 3]}",
+        "options": {}
+      },
+      "id": "node-create-rfqs",
+      "name": "Create RFQs in Backend",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [850, 300]
+    }
+  ],
+  "connections": {
+    "Webhook - Approved Requirement": {
+      "main": [[{"node": "Fetch Requirement Details", "type": "main", "index": 0}]]
+    },
+    "Fetch Requirement Details": {
+      "main": [[{"node": "Fetch Approved Suppliers", "type": "main", "index": 0}]]
+    },
+    "Fetch Approved Suppliers": {
+      "main": [[{"node": "Create RFQs in Backend", "type": "main", "index": 0}]]
+    }
+  }
+}
